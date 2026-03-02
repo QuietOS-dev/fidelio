@@ -600,6 +600,28 @@ static int pin_require_for_op(const uint8_t *pin_auth, uint32_t pin_auth_len,
         *verified = true;
     return 0;
 }
+
+static void ctap2_check_pin_status_led(void)
+{
+    pin_state_load();
+    if (pin_store.magic != FLASH_PIN_MAGIC) {
+        indicator_pin_not_set();
+    } else if (pin_store.retries == 0) {
+        indicator_locked();
+    } else {
+        indicator_wait_for_action();
+    }
+}
+
+static void ctap2_wait_for_presence(void)
+{
+    if (test_mode) {
+        indicator_test_delay();
+    } else {
+        indicator_wait_for_button_blinking();
+    }
+}
+
 static int derive_user_key(const uint8_t *rpIdHash, const uint8_t *nonce,
                            uint8_t *private_out, uint8_t *handle_hash)
 {
@@ -1458,8 +1480,7 @@ static int ctap2_make_credential(const uint8_t *payload, uint16_t payload_len,
     wc_Sha256Final(&sha, rpIdHash);
     wc_Sha256Free(&sha);
 
-    /* Require user presence */
-    indicator_wait_for_button(0x0, 0x20, 0);
+    ctap2_wait_for_presence();
 
     if (wc_InitRng(&rng) != 0) {
         reply[0] = CTAP2_ERR_INVALID_COMMAND;
@@ -1555,6 +1576,7 @@ static int ctap2_make_credential(const uint8_t *payload, uint16_t payload_len,
     if (cbor_put_bytes(&c, cert_att_der, cert_att_der_len) != 0) { ret = -1; goto cleanup; }
 
     *reply_len = c.len;
+    indicator_action_end();
     ret = 0;
 
 cleanup:
@@ -1711,8 +1733,7 @@ static int ctap2_get_assertion(const uint8_t *payload, uint16_t payload_len,
         return 0;
     }
 
-    /* Require user presence */
-    indicator_wait_for_button(0, 0, 0x20);
+    ctap2_wait_for_presence();
 
     if (wc_InitRng(&rng) != 0) {
         reply[0] = CTAP2_ERR_INVALID_COMMAND;
@@ -1822,6 +1843,9 @@ static int ctap2_get_assertion(const uint8_t *payload, uint16_t payload_len,
     if (cbor_put_uint(&c, 1) != 0) { ret = -1; goto ga_cleanup; }
 
     *reply_len = c.len;
+    if (ret == 0) {
+        indicator_action_end();
+    }
 
 ga_cleanup:
     wc_FreeRng(&rng);

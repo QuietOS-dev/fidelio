@@ -60,14 +60,17 @@ will never assert user presence.
 For this purpose, Fidelio requires a normally-open push-button between GPIO15
 and GND.
 
-On the Raspberry-pi pico board, this button can normally be soldered in place:
+An RGB LED connected to GPIO provides visual feedback about device status and operational state.
+On boards without an RGB LED, a single-color LED can be used (it will turn on/off based on overall state).
+
+On the Raspberry-pi pico board, the button can normally be soldered in place:
 
 ![Raspberry Pico soldering](doc/raspi_mod_button.png)
 
 
 If you are using a different model and/or you want to change the pin for the
 presence button and LED, just edit [pins.h](src/pins.h) and change the pin number
-defined by the macro `PRESENCE_BUTTON` and `U2F_LED`, respectively.
+defined by the macro `PRESENCE_BUTTON` and `RGB_LED`, respectively.
 
 
 ### Build and flash:
@@ -126,6 +129,40 @@ firmware as well.
 
 On first boot the LED will stay on while the master key is generated; press the
 presence button once to acknowledge, then the device will reboot automatically.
+
+### LED Indicator Status
+
+Fidelio uses an RGB LED to provide visual feedback about the device state and operational status:
+
+| LED State | Color | Meaning |
+|-----------|-------|---------|
+| **Solid Blue** | Blue | Device is ready, awaiting user action |
+| **Blinking Blue** (4 Hz) | Blue | Device is processing an authentication action. Press the presence button to complete the operation. |
+| **Solid Green** (2 seconds) | Green | Authentication action completed successfully. LED returns to blue after 2 seconds. |
+| **Solid Red** | Red | PIN code is not set yet. Use `fido2-token -S /dev/hidrawX` to initialize the PIN. |
+| **Blinking Red** (2 Hz) | Red | Device is locked due to too many failed PIN attempts (8 attempts). Device remains locked until PIN is reset or factory reset is performed. |
+| **Blinking Purple** (4 Hz) | Purple | **Test mode only**: Simulated confirmation delay (2 seconds). Used for testing without physical button press. |
+
+#### Configuration
+
+LED indicator colors can be customized by editing the `COLOR_*` definitions in [src/colors.h](src/colors.h):
+
+```c
+#define COLOR_RED_R     0x20
+#define COLOR_RED_G     0x00
+#define COLOR_RED_B     0x00
+/* ... etc for other colors ... */
+```
+
+#### Test Mode
+
+Test mode (`test_mode` in [src/pins.h](src/pins.h)) allows operation without requiring physical button presses:
+
+```c
+#define test_mode 0  /* Set to 1 to enable test mode */
+```
+
+When enabled, authentication operations automatically proceed after a 2-second delay (indicated by blinking purple LED) instead of waiting for button press. Useful for automated testing and CI/CD pipelines.
 
 ### Set the FIDO2 PIN
 

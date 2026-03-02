@@ -18,18 +18,32 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1335, USA
  *
  */
-#ifndef BUTTON_H
-#define BUTTON_H
 
-/* Default Board (Raspberry pi Pico RP2040) */
-//#define PRESENCE_BUTTON 15
-//#define PRESENCE_LED PICO_DEFAULT_LED_PIN
+#ifndef COLORS_H
+#define COLORS_H
 
+#define COLOR_RED_R     0x20
+#define COLOR_RED_G     0x00
+#define COLOR_RED_B     0x00
 
-/* Rp2040-zero USB v.1.1 */
-#define PRESENCE_BUTTON 29
-#define RGB_LED 16
+#define COLOR_GREEN_R   0x00
+#define COLOR_GREEN_G   0x20
+#define COLOR_GREEN_B   0x00
 
-#define test_mode 0
+#define COLOR_BLUE_R    0x00
+#define COLOR_BLUE_G    0x00
+#define COLOR_BLUE_B    0x20
+
+#define COLOR_YELLOW_R  0x20
+#define COLOR_YELLOW_G  0x20
+#define COLOR_YELLOW_B  0x00
+
+#define COLOR_PURPLE_R  0x20
+#define COLOR_PURPLE_G  0x00
+#define COLOR_PURPLE_B  0x20
+
+#define COLOR_OFF_R     0x00
+#define COLOR_OFF_G     0x00
+#define COLOR_OFF_B     0x00
 
 #endif

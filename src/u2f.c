@@ -293,7 +293,11 @@ static uint16_t fido_register(struct u2f_raw_hdr *hdr, uint16_t len)
     (void)hdr;
     (void)len;
 
-    indicator_wait_for_button(0, 0x20, 0);
+    if (test_mode) {
+        indicator_test_delay();
+    } else {
+        indicator_wait_for_button_blinking();
+    }
 
     /* Initialize wolfCrypt objects */
     if (wc_InitRng(&rng) != 0)
@@ -435,7 +439,11 @@ static uint16_t fido_auth(struct u2f_raw_hdr *hdr, uint16_t len)
         case 0x08: /* Sign with no presence */
             break;
         case 0x03:
-            indicator_wait_for_button(0,0,0x20);
+            if (test_mode) {
+                indicator_test_delay();
+            } else {
+                indicator_wait_for_button_blinking();
+            }
             break;
         default:
             return EWRONGDATA;

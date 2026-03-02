@@ -25,5 +25,15 @@ void indicator_init(void);
 void indicator_set_idle(void);
 void indicator_set(uint16_t r, uint16_t g, uint16_t b);
 void indicator_wait_for_button(uint16_t r, uint16_t g, uint16_t b);
+void indicator_wait_for_button_blinking(void);
+void indicator_wait_for_action(void);
+void indicator_action_start(void);
+void indicator_action_end(void);
+void indicator_pin_not_set(void);
+void indicator_locked(void);
+void indicator_test_delay(void);
+void indicator_stop_blinking(void);
+void indicator_blink(uint16_t r, uint16_t g, uint16_t b, uint16_t freq_hz, uint16_t duration_ms);
+int indicator_process_blink(void);
 
 #endif

@@ -22,6 +22,7 @@
 #include <stdint.h>
 #include "indicator.h"
 #include "pins.h"
+#include "colors.h"
 #include "pico/stdlib.h"
 #include "hardware/gpio.h"
 
@@ -80,6 +81,18 @@ static inline void rgb_write(uint8_t r, uint8_t g, uint8_t b)
 
 #endif
 
+typedef struct {
+    uint16_t r;
+    uint16_t g;
+    uint16_t b;
+    uint16_t freq_hz;
+    uint16_t duration_ms;
+    absolute_time_t start_time;
+    int active;
+} blink_state_t;
+
+static blink_state_t blink_state = {0};
+
 void indicator_init(void)
 {
 #ifdef RGB_LED
@@ -120,17 +133,57 @@ void indicator_set(uint16_t r, uint16_t g, uint16_t b)
 #endif
 }
 
+void indicator_blink(uint16_t r, uint16_t g, uint16_t b, uint16_t freq_hz, uint16_t duration_ms)
+{
+    blink_state.r = r;
+    blink_state.g = g;
+    blink_state.b = b;
+    blink_state.freq_hz = freq_hz;
+    blink_state.duration_ms = duration_ms;
+    blink_state.start_time = get_absolute_time();
+    blink_state.active = 1;
+}
+
+int indicator_process_blink(void)
+{
+    if (!blink_state.active)
+        return 0;
+
+    uint32_t elapsed = absolute_time_diff_us(blink_state.start_time, get_absolute_time()) / 1000;
+    
+    if (blink_state.duration_ms > 0 && elapsed >= blink_state.duration_ms) {
+        blink_state.active = 0;
+        indicator_set_idle();
+        return 0;
+    }
+
+    uint16_t half_period_ms = 500 / blink_state.freq_hz;
+    uint16_t phase = (elapsed / half_period_ms) % 2;
+    
+    if (phase == 0) {
+        indicator_set(blink_state.r, blink_state.g, blink_state.b);
+    } else {
+        indicator_set_idle();
+    }
+    
+    return 1;
+}
+
+void indicator_stop_blinking(void)
+{
+    blink_state.active = 0;
+    indicator_set_idle();
+}
+
 void indicator_wait_for_button(uint16_t r, uint16_t g, uint16_t b)
 {
 #ifdef RGB_LED
-    unsigned int idx = 0;
     absolute_time_t next_step = make_timeout_time_ms(80);
     gpio_init(PRESENCE_BUTTON);
     gpio_set_dir(PRESENCE_BUTTON, GPIO_IN);
     gpio_pull_up(PRESENCE_BUTTON);
     asm volatile("dmb");
 
-    /* If already pressed, wait for release before arming */
     indicator_set(r, g, b);
     while (gpio_get(PRESENCE_BUTTON) == 0) {
         sleep_ms(2);
@@ -140,11 +193,10 @@ void indicator_wait_for_button(uint16_t r, uint16_t g, uint16_t b)
     while (gpio_get(PRESENCE_BUTTON) != 0) {
         sleep_ms(2);
     }
-    sleep_ms(30); /* Debounce */
+    sleep_ms(30);
     indicator_set_idle();
 #else
     indicator_set(r, g, b);
-    /* If already pressed, wait for release before arming */
     while (gpio_get(PRESENCE_BUTTON) == 0) {
         sleep_ms(2);
     }
@@ -154,4 +206,65 @@ void indicator_wait_for_button(uint16_t r, uint16_t g, uint16_t b)
     sleep_ms(30);
     indicator_set_idle();
 #endif
+}
+
+void indicator_wait_for_button_blinking(void)
+{
+    gpio_init(PRESENCE_BUTTON);
+    gpio_set_dir(PRESENCE_BUTTON, GPIO_IN);
+    gpio_pull_up(PRESENCE_BUTTON);
+    asm volatile("dmb");
+
+    indicator_blink(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B, 4, 0);
+    
+    while (gpio_get(PRESENCE_BUTTON) == 0) {
+        indicator_process_blink();
+        sleep_ms(10);
+    }
+
+    blink_state.active = 0;
+    while (gpio_get(PRESENCE_BUTTON) != 0) {
+        sleep_ms(2);
+    }
+    sleep_ms(30);
+    indicator_set_idle();
+}
+
+void indicator_wait_for_action(void)
+{
+    indicator_set(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B);
+}
+
+void indicator_action_start(void)
+{
+    indicator_blink(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B, 4, 0);
+}
+
+void indicator_action_end(void)
+{
+    indicator_blink(COLOR_GREEN_R, COLOR_GREEN_G, COLOR_GREEN_B, 1, 2000);
+    while (blink_state.active) {
+        indicator_process_blink();
+        sleep_ms(10);
+    }
+    indicator_wait_for_action();
+}
+
+void indicator_pin_not_set(void)
+{
+    indicator_set(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B);
+}
+
+void indicator_locked(void)
+{
+    indicator_blink(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B, 2, 0);
+}
+
+void indicator_test_delay(void)
+{
+    indicator_blink(COLOR_PURPLE_R, COLOR_PURPLE_G, COLOR_PURPLE_B, 4, 2000);
+    while (blink_state.active) {
+        indicator_process_blink();
+        sleep_ms(10);
+    }
 }
