@@ -99,8 +99,8 @@ static void __not_in_flash_func(flash_master_keygen)(void)
     flash_range_erase(FLASH_CTR_ADDR1_OFF, FLASH_SECTOR_SIZE);
     write_counter_page(FLASH_CTR_ADDR0_OFF, U2F_Counter);
     write_master_page(FLASH_MKEY_OFF, mkey_buffer, master_magic);
-    /* Signal ready and wait for presence press to confirm first-boot provisioning */
-    indicator_wait_for_button(0x20, 0, 0);
+    /* Keep startup/user-presence indication in blue even on first provisioning. */
+    indicator_wait_for_button(0, 0, 0x20);
     watchdog_reboot(0, 0, 0);
     while (1) { tight_loop_contents(); }
 }
@@ -143,9 +143,9 @@ void u2f_init(void)
         U2F_Counter = U2F_Counter_load();
     }
 
-    /* immediately reflect PIN status on the LED so it isn't left off until
-       some CTAP action occurs */
-    ctap2_check_pin_status_led();
+    /* Startup LED policy is owned by system_boot(): keep steady blue on power-up.
+       Do not perform manual PIN-status LED probing here, because it can override
+       the expected boot indication (e.g. switch to red when PIN is not set). */
 }
 
 void u2f_factory_reset(void)
