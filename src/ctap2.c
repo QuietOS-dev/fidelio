@@ -548,11 +548,22 @@ static int pin_hash_plain(const uint8_t *pin, uint16_t pin_len, uint8_t *hash_ou
     return wc_Sha256Hash(pin, pin_len, hash_out);
 }
 
-static int pin_check_retries(void)
+
+/* helper used throughout the CTAP2 command handlers.  When the PIN
+   retries counter has reached zero the token is effectively blocked and we
+   need to notify the user.  Previously the LED was only updated when an
+   operation was already in progress; the customer wanted the board to start
+   blinking red as soon as a blocked state is detected, including during the
+   error return that accompanies the CTAP error code.  Calling
+   indicator_locked() here guarantees that behaviour. */
+int pin_check_retries(void)
 {
     pin_state_load();
-    if (pin_store.retries == 0)
+    if (pin_store.retries == 0) {
+        /* indicate locked immediately */
+        indicator_locked();
         return -1;
+    }
     return 0;
 }
 
@@ -572,6 +583,12 @@ static int pin_require_for_op(const uint8_t *pin_auth, uint32_t pin_auth_len,
     pin_state_load();
     if (pin_store.magic != FLASH_PIN_MAGIC) {
         return 0; /* no PIN set */
+    }
+    /* immediately error out if the PIN is already blocked; callers expect a
+       CTAP2_ERR_PIN_BLOCKED response and the LED should start blinking red. */
+    if (pin_store.retries == 0) {
+        indicator_locked();
+        return CTAP2_ERR_PIN_BLOCKED;
     }
     /* If UV not requested and no pinAuth provided, allow UV=0 path. */
     if (!require_pin && (!pin_auth || pin_auth_len == 0)) {
@@ -601,12 +618,18 @@ static int pin_require_for_op(const uint8_t *pin_auth, uint32_t pin_auth_len,
     return 0;
 }
 
-static void ctap2_check_pin_status_led(void)
+
+/* exported helper to update the LED according to whether a PIN is present
+   and whether the token is blocked.  This is called once during initialization
+   so the LED is lit immediately on plug‑in; previously the LED only came on
+   when an operation started. */
+void ctap2_check_pin_status_led(void)
 {
     pin_state_load();
-    if (pin_store.magic != FLASH_PIN_MAGIC) {
-        indicator_pin_not_set();
-    } else if (pin_store.retries == 0) {
+
+    /* Keep startup/default user-visible state blue. Only switch to red blinking
+       when the token is explicitly in blocked state. */
+    if (pin_store.retries == 0) {
         indicator_locked();
     } else {
         indicator_wait_for_action();

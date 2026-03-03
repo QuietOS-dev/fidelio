@@ -34,11 +34,15 @@
 #include "hardware/clocks.h"
 #include "fdo.h"
 #include "indicator.h"
+#include "colors.h"
     
 extern void u2f_init(void);
 extern void u2f_factory_reset(void);
 
 #define FACTORY_RESET_HOLD_US (10 * 1000 * 1000)
+
+static absolute_time_t boot_blue_reassert_at;
+static bool boot_blue_reassert_pending = false;
 
 static void presence_button_init(void)
 {
@@ -50,6 +54,30 @@ static void presence_button_init(void)
 static bool presence_button_pressed(void)
 {
     return gpio_get(PRESENCE_BUTTON) == 0;
+}
+
+static void boot_force_startup_blue(void)
+{
+    indicator_stop_blinking();
+    indicator_set(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B);
+}
+
+static void boot_schedule_blue_reassert(uint32_t delay_ms)
+{
+    boot_blue_reassert_at = make_timeout_time_ms(delay_ms);
+    boot_blue_reassert_pending = true;
+}
+
+static void boot_process_blue_reassert(void)
+{
+    if (!boot_blue_reassert_pending)
+        return;
+
+    if (!time_reached(boot_blue_reassert_at))
+        return;
+
+    boot_force_startup_blue();
+    boot_blue_reassert_pending = false;
 }
 
 static void factory_reset_startup_check(void)
@@ -82,6 +110,7 @@ void system_boot(void)
 
     /* Setting GPIOs for Led + Button */
     indicator_init();
+    boot_force_startup_blue();
 
     /* Initializing U2F parser */
     u2f_init();
@@ -90,13 +119,22 @@ void system_boot(void)
     /* Initializing TinyUSB device */
     tusb_init();
 
+    /* Force steady blue after all startup side effects. */
+    boot_force_startup_blue();
+
+    /* Re-assert blue once more after startup settles. */
+    boot_schedule_blue_reassert(2000);
 }
 
 int main(void) {
     system_boot();
 
-    /* Main loop: transfer control to USB */
+    /* Main loop: transfer control to USB and process any outstanding
+       indicator blinks so the LED can animate even when not inside a
+       blocking helper. */
     while (1) {
         tud_task();
+        indicator_process_blink();
+        boot_process_blue_reassert();
     }
 }
