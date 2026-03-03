@@ -142,6 +142,10 @@ void u2f_init(void)
     } else {
         U2F_Counter = U2F_Counter_load();
     }
+
+    /* immediately reflect PIN status on the LED so it isn't left off until
+       some CTAP action occurs */
+    ctap2_check_pin_status_led();
 }
 
 void u2f_factory_reset(void)

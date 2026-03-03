@@ -242,11 +242,12 @@ void indicator_action_start(void)
 
 void indicator_action_end(void)
 {
-    indicator_blink(COLOR_GREEN_R, COLOR_GREEN_G, COLOR_GREEN_B, 1, 2000);
-    while (blink_state.active) {
-        indicator_process_blink();
-        sleep_ms(10);
-    }
+    /* show a steady green for a short period instead of blinking; the caller
+       typically invokes this when an operation completes successfully. */
+    indicator_set(COLOR_GREEN_R, COLOR_GREEN_G, COLOR_GREEN_B);
+    /* keep green for two seconds so the user can easily see it, then return
+       to the normal "waiting for action" state */
+    sleep_ms(2000);
     indicator_wait_for_action();
 }
 
