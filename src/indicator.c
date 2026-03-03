@@ -237,6 +237,7 @@ void indicator_wait_for_button_blinking(void)
 
 void indicator_wait_for_action(void)
 {
+    indicator_stop_blinking();
     indicator_set(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B);
 }
 

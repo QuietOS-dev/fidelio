@@ -626,9 +626,10 @@ static int pin_require_for_op(const uint8_t *pin_auth, uint32_t pin_auth_len,
 void ctap2_check_pin_status_led(void)
 {
     pin_state_load();
-    if (pin_store.magic != FLASH_PIN_MAGIC) {
-        indicator_pin_not_set();
-    } else if (pin_store.retries == 0) {
+
+    /* Keep startup/default user-visible state blue. Only switch to red blinking
+       when the token is explicitly in blocked state. */
+    if (pin_store.retries == 0) {
         indicator_locked();
     } else {
         indicator_wait_for_action();
