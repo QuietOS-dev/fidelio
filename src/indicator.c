@@ -215,15 +215,20 @@ void indicator_wait_for_button_blinking(void)
     gpio_pull_up(PRESENCE_BUTTON);
     asm volatile("dmb");
 
+    /* Blink while *waiting* for the user to press the button (logic inverted
+       compared to the original implementation, which only blinked while the
+       button was already held down). */
     indicator_blink(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B, 4, 0);
-    
-    while (gpio_get(PRESENCE_BUTTON) == 0) {
+
+    /* wait until the button is pressed */
+    while (gpio_get(PRESENCE_BUTTON) != 0) {
         indicator_process_blink();
         sleep_ms(10);
     }
 
+    /* stop blinking once the press is detected, then debounce the release */
     blink_state.active = 0;
-    while (gpio_get(PRESENCE_BUTTON) != 0) {
+    while (gpio_get(PRESENCE_BUTTON) == 0) {
         sleep_ms(2);
     }
     sleep_ms(30);

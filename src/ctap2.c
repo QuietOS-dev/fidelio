@@ -584,6 +584,12 @@ static int pin_require_for_op(const uint8_t *pin_auth, uint32_t pin_auth_len,
     if (pin_store.magic != FLASH_PIN_MAGIC) {
         return 0; /* no PIN set */
     }
+    /* immediately error out if the PIN is already blocked; callers expect a
+       CTAP2_ERR_PIN_BLOCKED response and the LED should start blinking red. */
+    if (pin_store.retries == 0) {
+        indicator_locked();
+        return CTAP2_ERR_PIN_BLOCKED;
+    }
     /* If UV not requested and no pinAuth provided, allow UV=0 path. */
     if (!require_pin && (!pin_auth || pin_auth_len == 0)) {
         if (verified) *verified = false;

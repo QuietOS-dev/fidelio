@@ -82,6 +82,10 @@ void system_boot(void)
 
     /* Setting GPIOs for Led + Button */
     indicator_init();
+    /* immediately show blue on power‑up; the pin‑status check in u2f_init
+       may change color shortly afterwards, but the user will always see the
+       device come to life with a blue LED. */
+    indicator_wait_for_action();
 
     /* Initializing U2F parser */
     u2f_init();
@@ -95,8 +99,11 @@ void system_boot(void)
 int main(void) {
     system_boot();
 
-    /* Main loop: transfer control to USB */
+    /* Main loop: transfer control to USB and process any outstanding
+       indicator blinks so the LED can animate even when not inside a
+       blocking helper. */
     while (1) {
         tud_task();
+        indicator_process_blink();
     }
 }
