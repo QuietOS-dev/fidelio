@@ -1492,6 +1492,8 @@ static int ctap2_make_credential(const uint8_t *payload, uint16_t payload_len,
                                         params.clientDataHash, params.cdh_len,
                                         require_pin, &pin_verified);
     if (pin_needed != 0) {
+        if (pin_needed == CTAP2_ERR_PIN_BLOCKED)
+            indicator_locked();
         reply[0] = (uint8_t)pin_needed;
         *reply_len = 1;
         return 0;
@@ -1657,6 +1659,8 @@ static int ctap2_get_assertion(const uint8_t *payload, uint16_t payload_len,
                                         params.clientDataHash, params.cdh_len,
                                         require_pin, &pin_verified);
     if (pin_needed != 0) {
+        if (pin_needed == CTAP2_ERR_PIN_BLOCKED)
+            indicator_locked();
         reply[0] = (uint8_t)pin_needed;
         *reply_len = 1;
         return 0;
@@ -2063,6 +2067,7 @@ static int ctap2_client_pin(const uint8_t *payload, uint16_t payload_len,
                 reply[0] = CTAP2_ERR_PIN_NOT_SET; *reply_len = 1; return 0;
             }
             if (pin_check_retries() != 0) {
+                indicator_locked();
                 reply[0] = CTAP2_ERR_PIN_BLOCKED; *reply_len = 1; return 0;
             }
             if (!key_agree || !pin_agree_valid || parse_cose_pubkey(key_agree, (uint16_t)key_agree_len, platform_qx, platform_qy) != 0) {
@@ -2131,6 +2136,7 @@ static int ctap2_client_pin(const uint8_t *payload, uint16_t payload_len,
                 reply[0] = CTAP2_ERR_PIN_NOT_SET; *reply_len = 1; return 0;
             }
             if (pin_check_retries() != 0) {
+                indicator_locked();
                 reply[0] = CTAP2_ERR_PIN_BLOCKED; *reply_len = 1; return 0;
             }
             if (!key_agree || !pin_agree_valid || parse_cose_pubkey(key_agree, (uint16_t)key_agree_len, platform_qx, platform_qy) != 0) {
@@ -2227,10 +2233,6 @@ int ctap2_handle_cbor(const uint8_t *payload, uint16_t payload_len,
             *reply_len = 1;
             ret = 0;
             break;
-    }
-
-    if (ret == 0 && reply_len && *reply_len > 0) {
-        ctap2_update_indicator_for_status(reply[0]);
     }
 
     return ret;
