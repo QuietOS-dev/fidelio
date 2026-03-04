@@ -41,8 +41,8 @@ extern void u2f_factory_reset(void);
 
 #define FACTORY_RESET_HOLD_US (10 * 1000 * 1000)
 
-static absolute_time_t boot_blue_reassert_at;
-static bool boot_blue_reassert_pending = false;
+static absolute_time_t boot_red_reassert_at;
+static bool boot_red_reassert_pending = false;
 
 static void presence_button_init(void)
 {
@@ -56,28 +56,28 @@ static bool presence_button_pressed(void)
     return gpio_get(PRESENCE_BUTTON) == 0;
 }
 
-static void boot_force_startup_blue(void)
+static void boot_force_startup_red(void)
 {
     indicator_stop_blinking();
-    indicator_set(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B);
+    indicator_set(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B);
 }
 
-static void boot_schedule_blue_reassert(uint32_t delay_ms)
+static void boot_schedule_red_reassert(uint32_t delay_ms)
 {
-    boot_blue_reassert_at = make_timeout_time_ms(delay_ms);
-    boot_blue_reassert_pending = true;
+    boot_red_reassert_at = make_timeout_time_ms(delay_ms);
+    boot_red_reassert_pending = true;
 }
 
-static void boot_process_blue_reassert(void)
+static void boot_process_red_reassert(void)
 {
-    if (!boot_blue_reassert_pending)
+    if (!boot_red_reassert_pending)
         return;
 
-    if (!time_reached(boot_blue_reassert_at))
+    if (!time_reached(boot_red_reassert_at))
         return;
 
-    boot_force_startup_blue();
-    boot_blue_reassert_pending = false;
+    boot_force_startup_red();
+    boot_red_reassert_pending = false;
 }
 
 static void factory_reset_startup_check(void)
@@ -87,7 +87,7 @@ static void factory_reset_startup_check(void)
 
     /* Button held at power-on: arm factory reset before other subsystems start */
     indicator_init();
-    indicator_set(0x20, 0x20, 0); /* Yellow while counting */
+    indicator_set(COLOR_YELLOW_R, COLOR_YELLOW_G, COLOR_YELLOW_B); /* Yellow while counting */
 
     absolute_time_t pressed_since = get_absolute_time();
     while (presence_button_pressed()) {
@@ -110,7 +110,7 @@ void system_boot(void)
 
     /* Setting GPIOs for Led + Button */
     indicator_init();
-    boot_force_startup_blue();
+    boot_force_startup_red();
 
     /* Initializing U2F parser */
     u2f_init();
@@ -119,11 +119,11 @@ void system_boot(void)
     /* Initializing TinyUSB device */
     tusb_init();
 
-    /* Force steady blue after all startup side effects. */
-    boot_force_startup_blue();
+    /* Force steady red after all startup side effects. */
+    boot_force_startup_red();
 
-    /* Re-assert blue once more after startup settles. */
-    boot_schedule_blue_reassert(2000);
+    /* Re-assert red once more after startup settles. */
+    boot_schedule_red_reassert(2000);
 }
 
 int main(void) {
@@ -135,6 +135,6 @@ int main(void) {
     while (1) {
         tud_task();
         indicator_process_blink();
-        boot_process_blue_reassert();
+        boot_process_red_reassert();
     }
 }
