@@ -38,6 +38,7 @@
 #include "device_state.h"
 #include "pins.h"
 #include "indicator.h"
+#include "colors.h"
 #include "fdo.h"
 
 
@@ -99,8 +100,7 @@ static void __not_in_flash_func(flash_master_keygen)(void)
     flash_range_erase(FLASH_CTR_ADDR1_OFF, FLASH_SECTOR_SIZE);
     write_counter_page(FLASH_CTR_ADDR0_OFF, U2F_Counter);
     write_master_page(FLASH_MKEY_OFF, mkey_buffer, master_magic);
-    /* Keep startup/user-presence indication in blue even on first provisioning. */
-    indicator_wait_for_button(0, 0, 0x20);
+    indicator_wait_for_button(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B);
     watchdog_reboot(0, 0, 0);
     while (1) { tight_loop_contents(); }
 }
@@ -143,7 +143,7 @@ void u2f_init(void)
         U2F_Counter = U2F_Counter_load();
     }
 
-    /* Startup LED policy is owned by system_boot(): keep steady blue on power-up.
+    /* Startup LED policy is owned by system_boot(): keep steady red on power-up.
        Do not perform manual PIN-status LED probing here, because it can override
        the expected boot indication (e.g. switch to red when PIN is not set). */
 }
@@ -151,7 +151,7 @@ void u2f_init(void)
 void u2f_factory_reset(void)
 {
     /* Turn LED yellow while wiping state */
-    indicator_set(0x20, 0x20, 0);
+    indicator_set(COLOR_YELLOW_R, COLOR_YELLOW_G, COLOR_YELLOW_B);
     flash_range_erase(FLASH_MKEY_OFF, FLASH_SECTOR_SIZE);
     flash_range_erase(FLASH_CTR_ADDR0_OFF, FLASH_SECTOR_SIZE);
     flash_range_erase(FLASH_CTR_ADDR1_OFF, FLASH_SECTOR_SIZE);

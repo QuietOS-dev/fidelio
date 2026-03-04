@@ -121,7 +121,7 @@ void indicator_init(void)
 
 void indicator_set_idle(void)
 {
-    indicator_set(0, 0, 0);
+    indicator_set(COLOR_OFF_R, COLOR_OFF_G, COLOR_OFF_B);
 }
 
 void indicator_set(uint16_t r, uint16_t g, uint16_t b)
@@ -218,7 +218,7 @@ void indicator_wait_for_button_blinking(void)
     /* Blink while *waiting* for the user to press the button (logic inverted
        compared to the original implementation, which only blinked while the
        button was already held down). */
-    indicator_blink(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B, 4, 0);
+    indicator_blink(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B, 4, 0);
 
     /* wait until the button is pressed */
     while (gpio_get(PRESENCE_BUTTON) != 0) {
@@ -238,12 +238,12 @@ void indicator_wait_for_button_blinking(void)
 void indicator_wait_for_action(void)
 {
     indicator_stop_blinking();
-    indicator_set(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B);
+    indicator_set(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B);
 }
 
 void indicator_action_start(void)
 {
-    indicator_blink(COLOR_BLUE_R, COLOR_BLUE_G, COLOR_BLUE_B, 4, 0);
+    indicator_blink(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B, 4, 0);
 }
 
 void indicator_action_end(void)
@@ -264,7 +264,7 @@ void indicator_pin_not_set(void)
 
 void indicator_locked(void)
 {
-    indicator_blink(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B, 2, 0);
+    indicator_blink(COLOR_RED_R, COLOR_RED_G, COLOR_RED_B, 4, 0);
 }
 
 void indicator_test_delay(void)
