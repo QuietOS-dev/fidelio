@@ -286,10 +286,18 @@ static int cbor_read_text(const uint8_t *buf, uint16_t len, const uint8_t **out,
     return 0;
 }
 
+static void ctap2_update_indicator_for_status(uint8_t status)
+{
+    if (status == CTAP2_ERR_PIN_BLOCKED) {
+        indicator_locked();
+    }
+}
+
 static int write_error(uint8_t code, uint8_t *reply, uint16_t *reply_len)
 {
     reply[0] = code;
     *reply_len = 1;
+    ctap2_update_indicator_for_status(code);
     return 0;
 }
 
