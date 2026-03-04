@@ -286,10 +286,18 @@ static int cbor_read_text(const uint8_t *buf, uint16_t len, const uint8_t **out,
     return 0;
 }
 
+static void ctap2_update_indicator_for_status(uint8_t status)
+{
+    if (status == CTAP2_ERR_PIN_BLOCKED) {
+        indicator_locked();
+    }
+}
+
 static int write_error(uint8_t code, uint8_t *reply, uint16_t *reply_len)
 {
     reply[0] = code;
     *reply_len = 1;
+    ctap2_update_indicator_for_status(code);
     return 0;
 }
 
@@ -549,19 +557,13 @@ static int pin_hash_plain(const uint8_t *pin, uint16_t pin_len, uint8_t *hash_ou
 }
 
 
-/* helper used throughout the CTAP2 command handlers.  When the PIN
-   retries counter has reached zero the token is effectively blocked and we
-   need to notify the user.  Previously the LED was only updated when an
-   operation was already in progress; the customer wanted the board to start
-   blinking red as soon as a blocked state is detected, including during the
-   error return that accompanies the CTAP error code.  Calling
-   indicator_locked() here guarantees that behaviour. */
+/* helper used by CLIENT_PIN handlers to test whether retries were exhausted.
+   LED feedback is applied centrally from CTAP status replies so every blocked
+   response path behaves consistently. */
 int pin_check_retries(void)
 {
     pin_state_load();
     if (pin_store.retries == 0) {
-        /* indicate locked immediately */
-        indicator_locked();
         return -1;
     }
     return 0;
@@ -584,10 +586,7 @@ static int pin_require_for_op(const uint8_t *pin_auth, uint32_t pin_auth_len,
     if (pin_store.magic != FLASH_PIN_MAGIC) {
         return 0; /* no PIN set */
     }
-    /* immediately error out if the PIN is already blocked; callers expect a
-       CTAP2_ERR_PIN_BLOCKED response and the LED should start blinking red. */
     if (pin_store.retries == 0) {
-        indicator_locked();
         return CTAP2_ERR_PIN_BLOCKED;
     }
     /* If UV not requested and no pinAuth provided, allow UV=0 path. */
@@ -627,7 +626,7 @@ void ctap2_check_pin_status_led(void)
 {
     pin_state_load();
 
-    /* Keep startup/default user-visible state blue. Only switch to red blinking
+    /* Keep startup/default user-visible state red. Only switch to red blinking
        when the token is explicitly in blocked state. */
     if (pin_store.retries == 0) {
         indicator_locked();
@@ -2196,29 +2195,43 @@ void ctap2_reset_state(void)
 int ctap2_handle_cbor(const uint8_t *payload, uint16_t payload_len,
                       uint8_t *reply, uint16_t reply_max, uint16_t *reply_len)
 {
+    int ret;
+
     if (payload_len == 0 || reply_max < 1)
         return -1;
 
     uint8_t cmd = payload[0];
     switch (cmd) {
         case CTAP2_CMD_MAKE_CREDENTIAL:
-            return ctap2_make_credential(payload, payload_len, reply, reply_max, reply_len);
+            ret = ctap2_make_credential(payload, payload_len, reply, reply_max, reply_len);
+            break;
         case CTAP2_CMD_GET_ASSERTION:
-            return ctap2_get_assertion(payload, payload_len, reply, reply_max, reply_len);
+            ret = ctap2_get_assertion(payload, payload_len, reply, reply_max, reply_len);
+            break;
         case CTAP2_CMD_GET_INFO:
-            return ctap2_write_getinfo(reply, reply_max, reply_len);
+            ret = ctap2_write_getinfo(reply, reply_max, reply_len);
+            break;
         case CTAP2_CMD_CLIENT_PIN:
-            return ctap2_client_pin(payload, payload_len, reply, reply_max, reply_len);
+            ret = ctap2_client_pin(payload, payload_len, reply, reply_max, reply_len);
+            break;
         case CTAP2_CMD_RESET:
             pin_state_reset();
             rk_reset();
             fdo_init();
             reply[0] = CTAP2_ERR_SUCCESS;
             *reply_len = 1;
-            return 0;
+            ret = 0;
+            break;
         default:
             reply[0] = CTAP2_ERR_INVALID_COMMAND;
             *reply_len = 1;
-            return 0;
+            ret = 0;
+            break;
     }
+
+    if (ret == 0 && reply_len && *reply_len > 0) {
+        ctap2_update_indicator_for_status(reply[0]);
+    }
+
+    return ret;
 }
